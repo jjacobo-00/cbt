@@ -7,6 +7,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { User, Sun, Moon } from "lucide-react";
 import { useTheme } from "next-themes";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -15,7 +16,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
-import { googleSignIn } from "@/app/actions/googleSignIn";
 
 interface Session {
   id?: string;
@@ -31,11 +31,19 @@ interface NavbarProps {
 export default function Navbar({ session }: NavbarProps) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const router = useRouter();
 
-  // ✅ Wait for hydration
+  // ✅ Ensure client-only rendering consistency
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // ✅ Redirect to login if no session
+  useEffect(() => {
+    if (mounted && !session) {
+      router.push("/login");
+    }
+  }, [mounted, session, router]);
 
   const handleLogout = () => {
     toast.warning("Are you sure you want to log out?", {
@@ -44,6 +52,7 @@ export default function Navbar({ session }: NavbarProps) {
         onClick: async () => {
           await googleSignOut();
           toast.success("You have been logged out successfully!");
+          router.push("/login");
         },
       },
       cancel: {
@@ -61,8 +70,9 @@ export default function Navbar({ session }: NavbarProps) {
         </h1>
       </div>
 
+      {/* Right-side controls */}
       <div className="flex items-center gap-4">
-        {/* Theme Toggle — Render only after hydration */}
+        {/* Theme Toggle — only after mount */}
         {mounted && (
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
@@ -76,8 +86,8 @@ export default function Navbar({ session }: NavbarProps) {
           </button>
         )}
 
-        {/* User dropdown */}
-        {session && session.user ? (
+        {/* User Dropdown — only render after hydration */}
+        {mounted && session && session.user && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition">
@@ -105,15 +115,6 @@ export default function Navbar({ session }: NavbarProps) {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        ) : (
-          <form action={googleSignIn}>
-            <button
-              type="submit"
-              className="p-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition"
-            >
-              Sign in with Google
-            </button>
-          </form>
         )}
       </div>
     </header>
