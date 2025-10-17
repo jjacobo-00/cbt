@@ -1,63 +1,89 @@
-// app/auth/login/page.tsx
 "use client";
 
-import { signIn } from "next-auth/react";
-import { useState } from "react";
+import { useTransition } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Loader2, Globe } from "lucide-react";
+import { useTheme } from "next-themes";
+import { googleSignIn } from "@/app/actions/googleSignIn";
+import { motion } from "framer-motion";
+import Image from "next/image";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [isPending, startTransition] = useTransition();
+  const { theme } = useTheme();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const res = await signIn("credentials", {
-      redirect: false,
-      email,
-      password,
+  const handleGoogleLogin = () => {
+    startTransition(async () => {
+      await googleSignIn();
     });
-
-    if (res?.error) {
-      setError("Invalid credentials");
-    } else {
-      setError("");
-      // Redirect after login
-      window.location.href = "/";
-    }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-80">
-        <h1 className="text-2xl font-bold text-center">Login</h1>
+    <div
+      className={`flex items-center justify-center min-h-screen px-4 transition-colors duration-300 ${
+        theme === "dark"
+          ? "bg-gradient-to-b from-gray-950 to-gray-900"
+          : "bg-gradient-to-b from-gray-100 to-white"
+      }`}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+      >
+        <Card className="w-[380px] rounded-2xl shadow-xl border border-border/50 backdrop-blur-sm">
+          <CardHeader className="flex flex-col items-center justify-center space-y-3">
+            <Image
+              src="/logo.svg"
+              alt="App Logo"
+              width={130}
+              height={130}
+              priority
+              className="rounded-md"
+            />
+            <CardTitle className="text-2xl font-semibold tracking-tight text-foreground text-center">
+              Welcome Back 👋
+            </CardTitle>
+          </CardHeader>
 
-        {error && <p className="text-red-500">{error}</p>}
+          <CardContent className="space-y-6">
+            <p className="text-center text-sm text-muted-foreground">
+              Sign in to access your dashboard
+            </p>
 
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="border p-2 rounded"
-          required
-        />
+            <Button
+              variant="outline"
+              className="w-full flex items-center justify-center gap-2 py-5 font-medium transition-all hover:bg-accent hover:text-accent-foreground"
+              onClick={handleGoogleLogin}
+              disabled={isPending}
+            >
+              {isPending ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Globe className="h-5 w-5 text-blue-500" />
+              )}
+              {isPending ? "Signing in..." : "Continue with Google"}
+            </Button>
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="border p-2 rounded"
-          required
-        />
+            <div className="text-center text-xs text-muted-foreground">
+              By continuing, you agree to our{" "}
+              <a href="#" className="text-primary hover:underline">
+                Terms
+              </a>{" "}
+              and{" "}
+              <a href="#" className="text-primary hover:underline">
+                Privacy Policy
+              </a>
+              .
+            </div>
+          </CardContent>
+        </Card>
 
-        <button
-          type="submit"
-          className="bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
-        >
-          Login
-        </button>
-      </form>
+        <footer className="mt-6 text-center text-xs text-muted-foreground">
+          © {new Date().getFullYear()} CBT Inc. All rights reserved.
+        </footer>
+      </motion.div>
     </div>
   );
 }
