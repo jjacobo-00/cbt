@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
 import {
   Table,
   TableBody,
@@ -8,14 +10,59 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Loader2 } from "lucide-react";
+
+interface User {
+  id: number;
+  name: string;
+  email: string;
+}
 
 export default function Page() {
-  // Example data (replace with your API or database data)
-  const users = [
-    { id: 1, name: "John Doe", email: "john@example.com", role: "Admin" },
-    { id: 2, name: "Jane Smith", email: "jane@example.com", role: "User" },
-    { id: 3, name: "Mark Lee", email: "mark@example.com", role: "Moderator" },
-  ];
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // ✅ Fetch users from Supabase
+  const fetchUsers = async () => {
+    const { data, error } = await supabase
+      .from("users")
+      .select("*")
+      .order("id");
+    if (error) console.error("Error fetching users:", error);
+    else setUsers(data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchUsers();
+
+    // ✅ Realtime subscription to `users` table
+    const channel = supabase
+      .channel("users-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "users" },
+        () => {
+          fetchUsers(); // re-fetch whenever changes happen
+        }
+      )
+      .subscribe();
+
+    // ✅ Cleanup on unmount
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  // ✅ Loading state
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen gap-2 text-gray-500">
+        <Loader2 className="animate-spin w-6 h-6 text-muted-foreground" />
+        <p>Loading users...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
@@ -27,17 +74,23 @@ export default function Page() {
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {users.map((user) => (
-              <TableRow key={user.id}>
-                <TableCell>{user.name}</TableCell>
-                <TableCell>{user.email}</TableCell>
-                <TableCell>{user.role}</TableCell>
+            {users.length > 0 ? (
+              users.map((user) => (
+                <TableRow key={user.id}>
+                  <TableCell>{user.name}</TableCell>
+                  <TableCell>{user.email}</TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={3} className="text-center text-gray-500">
+                  No users found.
+                </TableCell>
               </TableRow>
-            ))}
+            )}
           </TableBody>
         </Table>
       </div>
